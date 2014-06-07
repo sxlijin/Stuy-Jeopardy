@@ -21,11 +21,10 @@ unsigned int moderator_pin = 3; // input line for moderator button (digital inpu
 unsigned int contest_light[] = {6,7,8,9,10,11,12}; // output lines for lights
 // unsigned int moderator_light = 3; // why is this here????
 
-boolean correct_answer = false;
-
 unsigned int claxon_pin = 4; // GPIO pin on the speaker
 int i; // iterator
 
+boolean correct_answer = false;
 boolean hasAnswered[] = {false, false, false, false};
 
 void setup() {
@@ -47,66 +46,69 @@ void loop() {
   Serial.print(isPressed(i)); Serial.print(", ");
   Serial.println( (getAnsweredState(i) == false) );
   if (isPressed(i) && (getAnsweredState(i) == false)) {
-    Serial.print("i is ");
+    Serial.println("Someone who's still allowed to answer has buzzed in!")
+    Serial.print("Index (i) is: ");
     Serial.println(i);
-    Serial.print("isPressed says ");
+    Serial.print("isPressed returns the following for i: ");
     Serial.println(isPressed(i));
-    Serial.print("not getAnsweredState says ");
+    Serial.print("not getAnsweredState (i.e. are they allowed to answer?) says: ");
     Serial.println(!getAnsweredState(i));
     // if contestant who *can* answer questions...
     long int start = millis();
     
-    lightSet(i, HIGH); //enable that light
+    lightSet(i, HIGH); //Enable the corresponding light
     signalStart(claxon_pin); //Sound the claxon!
     
-    while (millis() - start < 5000) { // 5 seconds to respond
-      if (!digitalRead(moderator_pin)) { //moderator confirms answer is correct
+    correct_answer = false; //Contestant can only get it right if mod says he got it right!
+    
+    while (millis() - start < 5000) { // 5 seconds for contestant to answer AND 
+      if (isPressed(moderator_pin)) { // for moderator to confirm the answer
         correct_answer = true;
         break;
       }
     }
     
-    if (correct_answer)
-      resetAnswers();
-    else
-      setAnswerState(i, true);
-    
     signalEnd(claxon_pin); // signal that the waiting period is over or question has been answered
     lightSet(i, LOW); //light off
+    
+    if (correct_answer)
+      resetAnswerStates(); // The question's over - everyone can answer again for the next question
+    else
+      setAnswerState(i, true); // Prevent contestant [group] from answering this question again.
   }
   Serial.print("mod pin is ");
   Serial.println(isPressed(moderator_pin));
-  if (!digitalRead((moderator_pin))) {
-    //resetAnswers();
+  if (isPressed(moderator_pin) && (hasAnswered[] == {true, true, true, true})) {
+    resetAnswerStates(); // If everyone gets locked out, mod presses his button to reset the system.
   }
   
-  i = (i + 1) % 7;//cycle thru 7 contestants
+  i = (i + 1) % 7; //Cycles through all 7 contestants.
 }
 
 boolean getAnsweredState(int contestant) {
   if (contestant > 2)
-    return hasAnswered[3];
+    return hasAnswered[3]; //Students altogether only get one chance at answering
   else
-    return hasAnswered[contestant];
+    return hasAnswered[contestant]; //Everyone else has an individual chance
 }
 
 void setAnswerState(int contestant, boolean set) {
   if (contestant > 2)
-    hasAnswered[3] = set;
+    hasAnswered[3] = set; //Students altogether only get one chance at answering
   else
-    hasAnswered[contestant] = set;
+    hasAnswered[contestant] = set; //Everyone else has an individual chance
 }
 
-boolean isPressed(unsigned int i) { // All the switches are pulled up
-  if (digitalRead(contest_pin[i])) //-------------- meaning that it is HIGH by 
-    return false; //-------------------- default and has an active LOW
+boolean isPressed(unsigned int i) {
+  // All the switches are pulled up
+  if (digitalRead(contest_pin[i])) //-- meaning that it is HIGH by 
+    return false; // So in its default state (unpressed), digitalRead returns HIGH, i.e. TRUE
   else 
-    return true;
+    return true; //whereas in its active state (pressed), digitalRead returns LOW, i.e. FALSE
 }
 
-void resetAnswers() {
-  for( int i = 0; i < 4; i++)
-    hasAnswered[i] = false;
+void resetAnswerStates() {
+  hasAnswered[] = {false, false, false, false};
 }
 
 void lightSet(unsigned int i, boolean state) {
